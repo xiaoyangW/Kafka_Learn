@@ -2,6 +2,7 @@ package com.xiaoyang.kafka;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.*;
+import org.apache.kafka.clients.producer.internals.DefaultPartitioner;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 import java.util.HashMap;
@@ -24,6 +25,8 @@ public class KafkaProducerApp {
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         //value序列化器
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+        //分区器
+        config.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, DefaultPartitioner.class);
         //重试次数
         config.put(ProducerConfig.RETRIES_CONFIG,5);
         //kafka集群连接

@@ -1,5 +1,6 @@
 package com.xiaoyang.kafka;
 
+import com.xiaoyang.kafka.config.ProducerInterceptorPrefix;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.producer.*;
 import org.apache.kafka.clients.producer.internals.DefaultPartitioner;
@@ -31,6 +32,8 @@ public class KafkaProducerApp {
         config.put(ProducerConfig.RETRIES_CONFIG,5);
         //kafka集群连接
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,BROKER_LIST);
+        //拦截器
+        config.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, ProducerInterceptorPrefix.class.getName());
 
         KafkaProducer<String,String> producer =  new KafkaProducer<String, String>(config);
         ProducerRecord<String,String> producerRecord = new ProducerRecord<String, String>(TOPIC,"Kafka-Producer-Send","Hello,Kafka!!");
@@ -39,6 +42,14 @@ public class KafkaProducerApp {
         //RecordMetadata recordMetadata = send.get();
         //log.info("RecordMetadata topic:{},partition:{},offset:{}",recordMetadata.topic(),recordMetadata.partition(),recordMetadata.offset());
         //异步发送
+        for (int i = 0; i < 100; i++) {
+            producer.send(producerRecord, new Callback() {
+                @Override
+                public void onCompletion(RecordMetadata recordMetadata, Exception e) {
+                    log.info("RecordMetadata topic:{},partition:{},offset:{}",recordMetadata.topic(),recordMetadata.partition(),recordMetadata.offset());
+                }
+            });
+        }
         producer.send(producerRecord, new Callback() {
             @Override
             public void onCompletion(RecordMetadata recordMetadata, Exception e) {

@@ -34,7 +34,8 @@ public class KafkaProducerApp {
         config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,BROKER_LIST);
         //拦截器
         config.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, ProducerInterceptorPrefix.class.getName());
-
+        //acks
+        config.put(ProducerConfig.ACKS_CONFIG,"-1");
         KafkaProducer<String,String> producer =  new KafkaProducer<String, String>(config);
         ProducerRecord<String,String> producerRecord = new ProducerRecord<String, String>(TOPIC,"Kafka-Producer-Send","Hello,Kafka!!");
         //同步发送

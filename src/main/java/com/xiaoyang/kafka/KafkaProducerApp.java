@@ -43,7 +43,7 @@ public class KafkaProducerApp {
         //RecordMetadata recordMetadata = send.get();
         //log.info("RecordMetadata topic:{},partition:{},offset:{}",recordMetadata.topic(),recordMetadata.partition(),recordMetadata.offset());
         //异步发送
-        for (int i = 0; i < 100; i++) {
+        for (int i = 0; i < 1; i++) {
             producer.send(producerRecord, new Callback() {
                 @Override
                 public void onCompletion(RecordMetadata recordMetadata, Exception e) {

@@ -21,7 +21,7 @@ public class KafkaConsumerApp {
     public final static String GROUP_ID = "group.kafka-test";
 
     public static void main(String[] args) {
-        Map<String, Object> config = new HashMap<String, Object>(16);
+        Map<String, Object> config = new HashMap<>(16);
         //key序列化器
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         //value序列化器

@@ -3,19 +3,13 @@ package com.xiaoyang.kafka;
 import java.time.Duration;
 
 import lombok.extern.slf4j.Slf4j;
-import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
-import org.apache.kafka.clients.consumer.KafkaConsumer;
+import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.apache.kafka.common.serialization.StringSerializer;
 
 
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.regex.Pattern;
 
 /**
@@ -37,7 +31,7 @@ public class KafkaConsumerApp {
 
         config.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         //关闭自动提交,关闭自动提交后需要手动提交
-        config.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,false);
+        //config.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,false);
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(config);
         //订阅主题
         consumer.subscribe(Collections.singletonList(TOPIC));
@@ -50,7 +44,34 @@ public class KafkaConsumerApp {
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(1));
             records.forEach(record -> System.out.println(record.value()));
         }*/
-        //手动提交
+        assignOffset(consumer);
+    }
+
+    /**
+     * 指定消费位移
+     * @param consumer KafkaConsumer
+     */
+    private static void assignOffset(KafkaConsumer<String, String> consumer ){
+        consumer.poll(Duration.ofMillis(2000));
+        //获取消费者所分配的分区
+        Set<TopicPartition> assignment = consumer.assignment();
+        //指定从分区尾部消费
+        //Map<TopicPartition, Long> topicPartitionLongMap = consumer.endOffsets(assignment);
+        assignment.forEach(partition->{
+            consumer.seek(partition,1010000);
+        });
+        //while (true){
+            ConsumerRecords<String, String> poll = consumer.poll(Duration.ofSeconds(1));
+            poll.forEach(record->{
+                log.info("指定位移消费：key-{},value-{}", record.key(), record.value());
+            });
+        //}
+    }
+    /**
+     * 手动提交
+     * @param consumer KafkaConsumer
+     */
+    private static void manualCommit(KafkaConsumer<String, String> consumer ){
         while(true){
             ConsumerRecords<String, String> poll = consumer.poll(Duration.ofMillis(1000));
             if (poll.isEmpty()){
@@ -64,8 +85,14 @@ public class KafkaConsumerApp {
 
             //同步提交
             consumer.commitSync();
-            //异步提交
-            //consumer.commitAsync();
+            /*//异步提交
+            consumer.commitAsync((offsets, exception) -> {
+                if (exception == null){
+                    log.info("commitAsync:{}",offsets);
+                }else {
+                    log.error("commitAsync Exception:{}",exception.toString());
+                }
+            });*/
         }
     }
 

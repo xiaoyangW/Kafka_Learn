@@ -2,6 +2,7 @@ package com.xiaoyang.kafka;
 
 import java.time.Duration;
 
+import com.xiaoyang.kafka.config.ConsumerInterceptorPrefix;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.kafka.clients.consumer.*;
 import org.apache.kafka.common.TopicPartition;
@@ -20,7 +21,7 @@ public class KafkaConsumerApp {
     public final static String BROKER_LIST = "192.168.146.151:9092,192.168.146.152:9092,192.168.146.153:9092";
     public final static String TOPIC = "kafka-test";
     public final static String GROUP_ID = "group.kafka-test";
-    private static volatile long offset;
+    private static volatile Map<TopicPartition, OffsetAndMetadata> offsets=new HashMap<>();
 
 
     public static void main(String[] args) {
@@ -30,7 +31,9 @@ public class KafkaConsumerApp {
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         //kafka集群连接
         config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BROKER_LIST);
-
+        //指定消费者拦截器
+        config.put(ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG, ConsumerInterceptorPrefix.class.getName());
+        //消费组
         config.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
         //关闭自动提交,关闭自动提交后需要手动提交
         //config.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,false);
@@ -44,9 +47,7 @@ public class KafkaConsumerApp {
                     @Override
                     public void onPartitionsRevoked(Collection<TopicPartition> partitions) {
                         //当使用者必须放弃某些分区时，将在重新平衡操作期间调用此方法。建议在此回调中将偏移量提交给Kafka或自定义偏移量存储，以防止重复数据。
-                        Set<TopicPartition> assignment = consumer.assignment();
-                        Map<TopicPartition, OffsetAndMetadata> offsets= new HashMap<>();
-                        assignment.forEach(topic->offsets.put(topic,new OffsetAndMetadata(offset)));
+
                         consumer.commitSync(offsets);
                     }
 
@@ -64,8 +65,8 @@ public class KafkaConsumerApp {
         while (true) {
             ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(1));
             records.forEach(record -> {
-                System.out.println(record.value());
-
+                log.info("消费：key-{},value-{}", record.key(), record.value());
+                offsets.put(new TopicPartition(record.topic(),record.partition()),new OffsetAndMetadata(record.offset()+1));
             });
         }
         //assignOffset(consumer);

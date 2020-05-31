@@ -37,7 +37,9 @@ public class KafkaProducerApp {
         //acks 0,1,-1
         config.put(ProducerConfig.ACKS_CONFIG,"-1");
         KafkaProducer<String,String> producer =  new KafkaProducer<String, String>(config);
-        ProducerRecord<String,String> producerRecord = new ProducerRecord<String, String>(TOPIC,"Kafka-Producer-Send","Hello,Kafka!!");
+        ProducerRecord<String,String> producerRecord = new ProducerRecord<String, String>(TOPIC,"Kafka-Producer-Send","Hello,Kafka 1!!");
+        ProducerRecord<String,String> producerRecord1 = new ProducerRecord<String, String>(TOPIC,0,System.currentTimeMillis()-500,"Kafka-Producer-Send","Hello,Kafka 2!!");
+
         //同步发送
         //Future<RecordMetadata> send = producer.send(producerRecord);
         //RecordMetadata recordMetadata = send.get();
@@ -51,7 +53,7 @@ public class KafkaProducerApp {
                 }
             });
         }
-        producer.send(producerRecord, new Callback() {
+        producer.send(producerRecord1, new Callback() {
             @Override
             public void onCompletion(RecordMetadata recordMetadata, Exception e) {
                 log.info("RecordMetadata topic:{},partition:{},offset:{}",recordMetadata.topic(),recordMetadata.partition(),recordMetadata.offset());

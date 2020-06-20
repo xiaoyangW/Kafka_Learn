@@ -10,6 +10,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * @author xiaoyang.wen
+ *
+ * kafka consumer拦截器
+ */
 public class ConsumerInterceptorPrefix implements ConsumerInterceptor<String, String> {
 
     private static final long TIME_OUT = 10 * 1000;

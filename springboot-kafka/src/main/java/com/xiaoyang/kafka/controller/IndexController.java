@@ -25,7 +25,7 @@ public class IndexController {
 
     @GetMapping("send/{msg}")
     public String send(@PathVariable String msg){
-        kafkaTemplate.send(TOPIC,"Hello Kafka ！！");
+        kafkaTemplate.send(TOPIC,msg);
         return "suc";
     }
 

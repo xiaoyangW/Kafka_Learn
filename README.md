@@ -105,6 +105,115 @@ spring版本，Kafka-Clients版本的兼容关系，见文档地址:https://spri
 如图：
 ![spring-kafka](http://s1.wailian.download/2020/06/18/spring-kafka.png)
 
-
 #### Kafka Producer 生产者
 
+##### 发送一个消息
+
+往`kafka-test`中发送一条消息示例：
+
+```java
+public final static String BROKER_LIST = "192.168.146.151:9092,192.168.146.152:9092,192.168.146.153:9092";
+public final static String TOPIC = "kafka-test";
+
+public static void main(String[] args) throws ExecutionException, InterruptedException {
+	Map<String,Object> config = new HashMap<String, Object>(16);
+	//key序列化器
+	config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+	//value序列化器
+	config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
+	//默认分区器DefaultPartitioner
+	//config.put(ProducerConfig.PARTITIONER_CLASS_CONFIG, DefaultPartitioner.class);
+	//重试次数
+	config.put(ProducerConfig.RETRIES_CONFIG,3);
+	//kafka集群连接
+	config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG,BROKER_LIST);
+	//拦截器
+	//config.put(ProducerConfig.INTERCEPTOR_CLASSES_CONFIG, ProducerInterceptorPrefix.class.getName());
+	//acks 0,1,-1
+	config.put(ProducerConfig.ACKS_CONFIG,"-1");
+	KafkaProducer<String,String> producer =  new KafkaProducer<String, String>(config);
+	ProducerRecord<String,String> producerRecord = new ProducerRecord<String, String>(TOPIC,"Kafka-Producer-Send","Hello,Kafka !!");
+	//同步发送
+	Future<RecordMetadata> send = producer.send(producerRecord);
+    //获取发送元数据
+	RecordMetadata recordMetadata = send.get();
+	log.info("RecordMetadata topic:{},partition:{},offset:{}",recordMetadata.topic(),recordMetadata.partition(),recordMetadata.offset());
+	producer.close();
+}
+```
+
+##### 发送消息步骤
+
+如上代码所示，发送一个消息的步骤，如下：
+
+1. 初始化`ProducerRecord<>`，ProducerRecord对象是发送消息的实体，主要包含：`TOPIC`、`消息KEY值`、`消息VALUE值`。
+
+2. 配置及初始化`KafkaProducer<>`，配置信息主要有:`BOOTSTRAP_SERVERS_CONFIG`、`KEY_SERIALIZER_CLASS_CONFIG`、`VALUE_SERIALIZER_CLASS_CONFIG`、`RETRIES_CONFIG`,每个配置的意思见上代码；因为消息是通过网络进行传输，所有必须进行序列化，序列化器的作用就是把消息的key/value对象序列化。
+
+3. 发送消息，通过调用`KafkaProducer`对象的`send(ProducerRecord)`方法发送消息。
+
+4. 接着这条记录会被添加到一个记录批次里面，这个批次里所有的消息会被发送到相同的主题和
+   分区。会有一个独立的线程来把这些记录批次发送到相应的 Broker 上。
+
+5. Broker成功接收到消息，表示发送成功，返回消息的元数据（包括主题和分区信息以及记录在
+   分区里的偏移量）。发送失败，可以选择重试或者直接抛出异常。
+
+   ![send msg](http://s1.wailian.download/2020/06/23/kafka-producer.png)
+
+##### 必要的参数配置
+
+- BOOTSTRAP_SERVERS_CONFIG：kafka连接地址
+
+- KEY_SERIALIZER_CLASS_CONFIG、VALUE_SERIALIZER_CLASS_CONFIG：序列化器，通过序列化器把`key`、`value`序列化用于网络传输，与`consumer`配置的反序列化器对应
+
+- RETRIES_CONFI：重试次数，是在发送失败时，生产者应尝试将消息发送给kafka多少次。默认值为2147483647，其为最大整数
+
+  [其他参数配置](http://kafka.apache.org/documentation/#producerconfigs)
+
+#### Kafka Consumer消费者
+
+##### 消费一个消息
+
+```java
+public final static String BROKER_LIST = "192.168.146.151:9092,192.168.146.152:9092,192.168.146.153:9092";
+public final static String TOPIC = "kafka-test";
+public final static String GROUP_ID = "group.kafka-test";
+private static volatile Map<TopicPartition, OffsetAndMetadata> offsets=new HashMap<>();
+
+public static void main(String[] args) {
+	Map<String, Object> config = new HashMap<>(16);
+	//反序列化器，和Producer的序列化器对应
+	config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+	config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
+	//kafka集群连接
+	config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, BROKER_LIST);
+	//指定消费者拦截器
+	//config.put(ConsumerConfig.INTERCEPTOR_CLASSES_CONFIG, ConsumerInterceptorPrefix.class.getName());
+	//消费组
+	config.put(ConsumerConfig.GROUP_ID_CONFIG, GROUP_ID);
+	//关闭自动提交,关闭自动提交后需要手动提交
+	//config.put(ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG,false);
+	KafkaConsumer<String, String> consumer = new KafkaConsumer<>(config);
+	//订阅主题
+	consumer.subscribe(Collections.singletonList(TOPIC));
+	//通过正则表达式订阅以kafka-开头的主题
+	//consumer.subscribe(Pattern.compile("kafka-*"));
+	//指定分区消费,
+	//consumer.assign(Collections.singletonList(new TopicPartition(TOPIC,0)));
+	//consumer自动提交的消费形式。
+	while (true) {
+		ConsumerRecords<String, String> records = consumer.poll(Duration.ofSeconds(1));
+		records.forEach(record -> {
+			log.info("消费：key-{},value-{}", record.key(), record.value());
+		});
+	}
+}
+```
+
+##### 消费消息步
+
+如上代码所示，消费一个消息的步骤，如下：
+
+1. 配置及初始化`KafkaConsumer<>`，配置信息主要有:`BOOTSTRAP_SERVERS_CONFIG`、`KEY_DESERIALIZER_CLASS_CONFIG`、`VALUE_DESERIALIZER_CLASS_CONFIG`、`GROUP_ID_CONFIG`,每个配置的意思见上代码；key/value对象反序列化器与生产者的序列化器对应。
+2. 订阅主题，通过调用`KafkaConsumer`对象的`subscribe(Collection<String> topics)`订阅一个或多个主题。
+3. 消费消息，通过调用`KafkaConsumer`对象的`poll(final Duration timeout)`方法获取`ConsumerRecords<>`消息列表对象，遍历列表消费；如上代码

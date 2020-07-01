@@ -77,6 +77,15 @@
   --topic 指定了消费端订阅的主题
   ```
 
+##### 其他配置
+
+- `num.partitiions`:自动创建主题时的分区个数
+- `log.retention.ms`:kafka通常根据时间来决定数据可以被保留的时间，除了这个配置还有两个参数`log.retention.minutes、log.retention.hours`，默认使用`log.retention.hours`的配置时间，默认值168小时；如果指定了不止一个参数，Kafka会优先使用具有最小值的那个参数
+- `log.retention.bytes`:通过保留消息字节数来判断消息是否过期，通过`log.retention.bytes`来指定，作用在每个分区上；比如一个主题有八个分区并且这个参数设置为1G，那么这个主题最多就可以保留8G的数据
+- `log.segment.bytes`:这个设置作用在日志片段上，当消息到达broker时会被追加到分区的当前日志片段上，当日志片段大小到达`log.segment.bytes(默认1G)`指定上限时,当前日志片段就会被关闭，一个新的日志片段就会被打开,关闭的日志片段等待过期
+- `log.segment.ms`:这个设置作用是多长时间后日志片段会被关闭，这个设置与`log.segment.bytes`不存在互斥问题，两个都设置时日志片段会在大小或者时间到达上限时被关闭，默认情况下`log.segment.ms`没有设置值
+- `message.max.bytes`:通过该设置来限制单个消息的大小，默认值是1000000也就是1MB，消息超过大小broker不会接收
+
 #### Kafka Java客户端介绍
 
 使用Maven依赖，客户端的版本我这里和Kafka版本保持一致使用`2.5.0`版本
@@ -85,6 +94,7 @@
 <dependency>
     <groupId>org.apache.kafka</groupId>
     <artifactId>kafka-clients</artifactId>
+    //这里与kafka版本一致
     <version>2.5.0</version>
 </dependency>
 ```
@@ -170,6 +180,40 @@ public static void main(String[] args) throws ExecutionException, InterruptedExc
 
   [其他参数配置](http://kafka.apache.org/documentation/#producerconfigs)
 
+##### 序列化器
+
+消息要到网络上进行传输，必须进行序列化，而序列化器的作用就是如此。
+Kafka 提供了默认的字符串序列化器（org.apache.kafka.common.serialization.StringSerializer），
+还有整型（IntegerSerializer）和字节数组（BytesSerializer）序列化器，这些序列化器都实现了接口
+（org.apache.kafka.common.serialization.Serializer）基本上能够满足大部分场景的需求。
+
+##### 自定义系列化器
+
+实现`org.apache.kafka.common.serialization.Serializer`接口，主要实现`byte[] serialize(String topic, T data);`既可以了，只要将需要序列化的对象转换为一个字节数据，反序列化有对应的发送即可；这里实现一个将`Map<String,String>`对象序列化的序列化器，代码如下：
+
+```java
+public class MapSerializer implements Serializer<Map<String,String>> {
+
+    @Override
+    public byte[] serialize(String topic, Map<String,String> data) {
+        if (data==null){
+            return null;
+        }
+        ByteArrayOutputStream bos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = null;
+        try {
+            oos = new ObjectOutputStream(bos);
+            oos.writeObject(data);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return bos.toByteArray();
+    }
+}
+```
+
+
+
 #### Kafka Consumer消费者
 
 ##### 消费一个消息
@@ -210,10 +254,36 @@ public static void main(String[] args) {
 }
 ```
 
-##### 消费消息步
+##### 消费消息步骤
 
 如上代码所示，消费一个消息的步骤，如下：
 
 1. 配置及初始化`KafkaConsumer<>`，配置信息主要有:`BOOTSTRAP_SERVERS_CONFIG`、`KEY_DESERIALIZER_CLASS_CONFIG`、`VALUE_DESERIALIZER_CLASS_CONFIG`、`GROUP_ID_CONFIG`,每个配置的意思见上代码；key/value对象反序列化器与生产者的序列化器对应。
 2. 订阅主题，通过调用`KafkaConsumer`对象的`subscribe(Collection<String> topics)`订阅一个或多个主题。
 3. 消费消息，通过调用`KafkaConsumer`对象的`poll(final Duration timeout)`方法获取`ConsumerRecords<>`消息列表对象，遍历列表消费；如上代码
+
+
+
+#### SpringBoot中使用Kafka
+
+springboot依赖:
+
+```xml
+....
+<parent>
+	<groupId>org.springframework.boot</groupId>
+	<artifactId>spring-boot-starter-parent</artifactId>
+	<version>2.3.1.RELEASE</version>
+	<relativePath/>  
+</parent>
+....
+<dependencies>
+    ....
+    <dependency>
+		<groupId>org.springframework.kafka</groupId>
+		<artifactId>spring-kafka</artifactId>
+	</dependency>
+    ....
+</dependencies>
+```
+
